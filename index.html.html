@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Typing Golf - Driving Range</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        #uiContainer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+        #powerSlider {
+            width: 200px;
+            margin-bottom: 10px;
+        }
+        #hitButton {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #hitButton:hover {
+            background-color: #45a049;
+        }
+        /* Audio controls removed */
+    </style>
+</head>
+<body>
+    <!-- The canvas element that will display the game -->
+    <canvas id="renderCanvas"></canvas>
+    
+    <!-- UI Controls -->
+    <div id="uiContainer">
+        <div>
+            <label for="difficultySelector">Difficulty: </label>
+            <select id="difficultySelector">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+        </div>
+        <div>
+            <label for="clubSelector">Club: </label>
+            <select id="clubSelector">
+                <option value="driver">Driver</option>
+                <option value="wood3">3 Wood</option>
+                <option value="iron5">5 Iron</option>
+                <option value="iron9">9 Iron</option>
+                <option value="wedge">Pitching Wedge</option>
+                <option value="putter">Putter</option>
+            </select>
+        </div>
+        <div>
+            <label>Power: </label>
+            <span id="powerValue">75%</span>
+        </div>
+        <div>
+            <label>Wind: </label>
+            <span id="windDisplay">0 mph</span>
+        </div>
+        <div>
+            <label>Aim: </label>
+            <span id="aimDisplay">Center</span>
+        </div>
+        <div id="aimInstructions" style="margin-top: 5px; font-style: italic;">
+            Click on the ground to aim and set power. The further you click, the more power.
+        </div>
+        <div>
+            <button id="hitButton">Hit Ball</button>
+        </div>
+        <!-- Sound toggle removed -->
+        <div id="shotInfo" style="margin-top: 10px;"></div>
+    </div>
+    
+    <!-- Shot History Table -->
+    <div id="historyContainer" style="position: absolute; top: 10px; right: 10px; background-color: rgba(255, 255, 255, 0.7); padding: 10px; border-radius: 5px; font-family: Arial, sans-serif;">
+        <h3 style="margin-top: 0; margin-bottom: 10px;">Last 5 Shots</h3>
+        <table id="shotHistoryTable" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 5px; border-bottom: 1px solid #ddd; text-align: left;">#</th>
+                    <th style="padding: 5px; border-bottom: 1px solid #ddd; text-align: left;">Club</th>
+                    <th style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">Power</th>
+                    <th style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">Distance</th>
+                    <th style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">Accuracy</th>
+                </tr>
+            </thead>
+            <tbody id="shotHistoryBody">
+                <tr>
+                    <td colspan="4" style="padding: 10px; text-align: center;">No shots recorded</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Typing UI Overlay -->
+    <div id="typingOverlay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); padding: 20px; border-radius: 10px; width: 80%; max-width: 800px; color: white; font-family: Arial, sans-serif; box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);">
+        <div id="typingPromptContainer">
+            <div id="previewMessage" style="font-size: 18px; margin-bottom: 10px; color: #FFD700;">Preview: Get ready to type this sentence...</div>
+            <div id="typingPrompt" style="font-size: 24px; margin-bottom: 20px; line-height: 1.4;"></div>
+            <div id="countdownTimer" style="font-size: 36px; text-align: center; margin-bottom: 10px;">3</div>
+        </div>
+        <div style="position: relative; height: 20px; background-color: #333; border-radius: 10px; margin-bottom: 15px;">
+            <div id="typingProgressBar" style="height: 100%; width: 0%; background-color: #4CAF50; border-radius: 10px; transition: width 0.1s;"></div>
+            <div id="typingTimeBar" style="position: absolute; top: 0; height: 100%; width: 100%; background-color: rgba(255, 0, 0, 0.3); border-radius: 10px; transform-origin: left; transform: scaleX(0);"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <div id="typingAccuracy">Accuracy: 100%</div>
+            <div id="typingTimer">Time: <span id="typingTimeValue">0</span>s</div>
+        </div>
+        <div id="typingInput" style="padding: 15px; background-color: #444; border-radius: 5px; font-size: 20px; color: #fff; min-height: 60px; white-space: pre-wrap; word-break: break-word;"></div>
+                        <div style="text-align: center; margin-top: 15px; font-style: italic;">Type the text above - press Enter when finished or hit the ball with Enter key</div>
+    </div>
+
+    <!-- Audio elements removed -->
+
+    <!-- Load external libraries -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+    <!-- Game script -->
+    <script>
+        // Wait for DOM to fully load before initializing the game
+        window.addEventListener('DOMContentLoaded', function() {
+            // Sound functionality removed
+            
+            // Define club data with min and max distances
+            const clubs = {
+                driver: { name: "Driver", minDistance: 150, maxDistance: 250, launchAngle: 12 },
+                wood3: { name: "3 Wood", minDistance: 130, maxDistance: 220, launchAngle: 14 },
+                iron5: { name: "5 Iron", minDistance: 110, maxDistance: 180, launchAngle: 18 },
+                iron9: { name: "9 Iron", minDistance: 60, maxDistance: 100, launchAngle: 26 },
+                wedge: { name: "Pitching Wedge", minDistance: 30, maxDistance: 80, launchAngle: 32 },
+                putter: { name: "Putter", minDistance: 1, maxDistance: 15, launchAngle: 1 }
+            };
+            
+            // Game state variables
+            let ball, tee, landingMarker, ground;
+            let ballFlying = false;
+            let activeLabels = []; // Track active labels
+            let shotHistory = []; // Track shot history
+            let currentAimAngle = 0; // Current aiming angle in radians
+            let currentPower = 75; // Current power percentage
+            
+            // Typing state variables
+            let typingState = {
+                active: false,
+                currentSentence: "",
+                typedText: "",
+                startTime: 0,
+                maxTime: 0,
+                interval: null
+            };
+            
+            // Get references to HTML elements
+            const canvas = document.getElementById("renderCanvas");
+            const clubSelector = document.getElementById("clubSelector");
+            const powerValue = document.getElementById("powerValue");
+            const hitButton = document.getElementById("hitButton");
+            const windDisplay = document.getElementById("windDisplay");
+            const difficultySelector = document.getElementById("difficultySelector");
+            const shotInfo = document.getElementById("shotInfo");
+            const aimDisplay = document.getElementById("aimDisplay");
+            const shotHistoryBody = document.getElementById("shotHistoryBody");
+            
+            // Typing UI elements
+            const typingOverlay = document.getElementById("typingOverlay");
+            const typingPrompt = document.getElementById("typingPrompt");
+            const typingInput = document.getElementById("typingInput");
+            const typingProgressBar = document.getElementById("typingProgressBar");
+            const typingTimeBar = document.getElementById("typingTimeBar");
+            const typingTimeValue = document.getElementById("typingTimeValue");
+            const typingAccuracy = document.getElementById("typingAccuracy");
+            const countdownTimer = document.getElementById("countdownTimer");
+            const typingPromptContainer = document.getElementById("typingPromptContainer");
+            
+            // Create the Babylon.js engine
+            const engine = new BABYLON.Engine(canvas, true);
+            
+            // Clean up deleted functions and variables
+            let savedCamera = {
+                alpha: 0,
+                beta: 0,
+                radius: 0
+            };
+            
+            // Create scene
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color3(0.4, 0.6, 0.9); // Sky color
+            
+            // Create camera
+            const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 12, 120, 
+                new BABYLON.Vector3(0, 0, 50), scene);
+            camera.lowerRadiusLimit = 20;
+            camera.upperRadiusLimit = 150;
+            camera.attachControl(canvas, true);
+            
+            // Save initial camera position
+            savedCamera.alpha = camera.alpha;
+            savedCamera.beta = camera.beta;
+            savedCamera.radius = camera.radius;
+            
+            // Create light
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
+            
+            // Create ground
+            ground = BABYLON.MeshBuilder.CreateGround("ground", {
+                width: 1000, 
+                height: 1000
+            }, scene);
+            const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
+            groundMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.2); // Green color
+            ground.material = groundMaterial;
+            
+            // Initialize game objects
+            initializeGameObjects();
+            createDistanceMarkers();
+            updateWind();
+            
+            // Start the render loop
+            engine.runRenderLoop(function() {
+                scene.render();
+            });
+            
+            // Handle window resize
+            window.addEventListener("resize", function() {
+                engine.resize();
+            });
+            
+            // Initialize all UI listeners after objects are created
+            initializeEventListeners();
+            
+            // Create golf objects
+            function initializeGameObjects() {
+                // Create golf ball
+                ball = BABYLON.MeshBuilder.CreateSphere("ball", {
+                    diameter: 0.43 * 2 // Golf ball diameter (made larger for visibility)
+                }, scene);
+                const ballMaterial = new BABYLON.StandardMaterial("ballMaterial", scene);
+                ballMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1); // White color
+                ball.material = ballMaterial;
+                ball.position = new BABYLON.Vector3(0, 0.43, 0); // Ball radius above ground
+                
+                // Create tee
+                tee = BABYLON.MeshBuilder.CreateCylinder("tee", {
+                    height: 0.5,
+                    diameter: 0.3
+                }, scene);
+                const teeMaterial = new BABYLON.StandardMaterial("teeMaterial", scene);
+                teeMaterial.diffuseColor = new BABYLON.Color3(1, 0.8, 0.6); // Wooden color
+                tee.material = teeMaterial;
+                tee.position = new BABYLON.Vector3(0, 0.25, 0);
+                
+                // Create landing marker
+                landingMarker = BABYLON.MeshBuilder.CreateCylinder("landingMarker", {
+                    height: 0.1,
+                    diameter: 2
+                }, scene);
+                const landingMaterial = new BABYLON.StandardMaterial("landingMaterial", scene);
+                landingMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0); // Red color
+                landingMaterial.alpha = 0.7; // Semi-transparent
+                landingMarker.material = landingMaterial;
+                landingMarker.position = new BABYLON.Vector3(0, 0.05, 0);
+                landingMarker.visibility = 0; // Hidden initially
+                
+                // Create aiming target
+                createAimingTarget();
+            }
+            
+            // Create distance markers
+            function createDistanceMarkers() {
+                for (let distance = 50; distance <= 300; distance += 50) {
+                    // Create marker billboard
+                    const plane = BABYLON.MeshBuilder.CreatePlane("marker" + distance, {
+                        width: 6,
+                        height: 3
+                    }, scene);
+                    plane.position = new BABYLON.Vector3(0, 2, distance);
+                    
+                    // Create dynamic texture for text
+                    const textTexture = new BABYLON.DynamicTexture("markerTexture" + distance, {
+                        width: 256,
+                        height: 128
+                    }, scene);
+                    const textContext = textTexture.getContext();
+                    textContext.font = "bold 80px Arial";
+                    textContext.fillStyle = "white";
+                    textContext.textAlign = "center";
+                    textContext.clearRect(0, 0, 256, 128);
+                    textContext.fillText(distance + "y", 128, 90);
+                    textTexture.update();
+                    
+                    // Apply texture to plane
+                    const textMaterial = new BABYLON.StandardMaterial("textMaterial" + distance, scene);
+                    textMaterial.diffuseTexture = textTexture;
+                    textMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+                    textMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                    textMaterial.backFaceCulling = false;
+                    plane.material = textMaterial;
+                    
+                    // Create ground line
+                    const points = [
+                        new BABYLON.Vector3(-30, 0.05, distance),
+                        new BABYLON.Vector3(30, 0.05, distance)
+                    ];
+                    const line = BABYLON.MeshBuilder.CreateLines("line" + distance, {
+                        points: points
+                    }, scene);
+                    line.color = new BABYLON.Color3(1, 1, 1);
+                }
+            }
+            
+            // Set up all event listeners
+            function initializeEventListeners() {
+                // Club selector
+                clubSelector.addEventListener("change", function() {
+                    // Recalculate power based on current distance
+                    if (scene.getMeshByName("aimingTarget")) {
+                        const target = scene.getMeshByName("aimingTarget");
+                        const distance = new BABYLON.Vector3(target.position.x, 0, target.position.z).length();
+                        const club = clubs[clubSelector.value];
+                        
+                        // Constrain to club limits
+                        currentPower = calculatePowerForDistance(distance, club);
+                        powerValue.textContent = currentPower + "%";
+                    }
+                    
+                    createAimingTarget();
+                });
+                
+                // Hit button
+                hitButton.addEventListener("click", function() {
+                    if (ballFlying) return;
+                    
+                    // Start typing challenge instead of immediately hitting ball
+                    startTypingChallenge();
+                });
+                
+                // Setup ground click for aiming
+                scene.onPointerDown = function(evt, pickResult) {
+                    if (!ballFlying && !typingState.active && pickResult.hit && pickResult.pickedMesh === ground) {
+                        // Get click position on ground
+                        const clickPos = pickResult.pickedPoint;
+                        
+                        // Calculate distance from ball
+                        const ballPos = ball.position;
+                        const dx = clickPos.x - ballPos.x;
+                        const dz = clickPos.z - ballPos.z;
+                        const clickDistance = Math.sqrt(dx * dx + dz * dz);
+                        
+                        // Get current club
+                        const club = clubs[clubSelector.value];
+                        
+                        // Calculate power based on distance (constrained to club limits)
+                        currentPower = calculatePowerForDistance(clickDistance, club);
+                        powerValue.textContent = currentPower + "%";
+                        
+                        // Calculate angle in radians
+                        currentAimAngle = -Math.atan2(dx, dz);
+                        
+                        // Update UI and aiming visuals
+                        updateAimDisplay();
+                        createAimingTarget();
+                    }
+                };
+                
+                // Keyboard input for typing and hitting ball with Enter key
+                window.addEventListener("keydown", function(evt) {
+                    // If Enter pressed while not in typing challenge and not while ball is flying, start shot
+                    if (evt.key === "Enter" && !typingState.active && !ballFlying) {
+                        startTypingChallenge();
+                        evt.preventDefault(); // Prevent default Enter behavior
+                    }
+                    // If in typing challenge, handle typing input
+                    else if (typingState.active) {
+                        handleTypingInput(evt);
+                    }
+                });
+            }
+            
+            // Calculate power percentage based on distance and club limits
+            function calculatePowerForDistance(distance, club) {
+                // Constrain to club limits
+                const clampedDistance = Math.min(Math.max(distance, club.minDistance), club.maxDistance);
+                
+                // Calculate power percentage
+                const powerPercent = Math.round((clampedDistance - club.minDistance) / (club.maxDistance - club.minDistance) * 100);
+                
+                return Math.min(Math.max(powerPercent, 1), 100); // Ensure between 1-100%
+            }
+            
+            // Create aiming target that shows approximate landing area
+            function createAimingTarget() {
+                // Get current club and power
+                const clubValue = clubSelector.value;
+                const club = clubs[clubValue];
+                const power = currentPower / 100;
+                
+                // Calculate approximate distance
+                const distance = club.minDistance + (power * (club.maxDistance - club.minDistance));
+                
+                // Calculate position based on aim angle
+                // Note: We're using negative angle for the x-coordinate to fix the mirroring issue
+                const x = Math.sin(-currentAimAngle) * distance;
+                const z = Math.cos(currentAimAngle) * distance;
+                
+                // Create or update landing marker
+                if (scene.getMeshByName("aimingTarget")) {
+                    // Update existing target
+                    const target = scene.getMeshByName("aimingTarget");
+                    target.position = new BABYLON.Vector3(x, 0.05, z);
+                    
+                    // Update size based on club accuracy
+                    const accuracy = 1 - (club.launchAngle / 40); // Approximate accuracy from launch angle
+                    const radius = 3 + (10 * (1 - accuracy) * power);
+                    target.scaling = new BABYLON.Vector3(radius, 0.1, radius);
+                    
+                    // Update arrow if it exists
+                    if (scene.getMeshByName("targetArrow")) {
+                        const arrow = scene.getMeshByName("targetArrow");
+                        arrow.position = new BABYLON.Vector3(x, 5, z);
+                    }
+                } else {
+                    // Create new target
+                    const target = BABYLON.MeshBuilder.CreateCylinder("aimingTarget", {
+                        height: 0.1,
+                        diameter: 1
+                    }, scene);
+                    const targetMaterial = new BABYLON.StandardMaterial("targetMaterial", scene);
+                    targetMaterial.diffuseColor = new BABYLON.Color3(1, 1, 0); // Yellow color
+                    targetMaterial.alpha = 0.5; // Semi-transparent
+                    target.material = targetMaterial;
+                    
+                    // Position based on aim angle
+                    target.position = new BABYLON.Vector3(x, 0.05, z);
+                    
+                    // Size based on club accuracy
+                    const accuracy = 1 - (club.launchAngle / 40); // Approximate accuracy from launch angle
+                    const radius = 3 + (10 * (1 - accuracy) * power);
+                    target.scaling = new BABYLON.Vector3(radius, 0.1, radius);
+                    
+                    // Create animated arrow pointing down to target
+                    createTargetArrow(x, z);
+                }
+                
+                // Create or update target label
+                createOrUpdateTargetLabel(x, z, distance);
+            }
+            
+            // Create animated arrow pointing to target
+            function createTargetArrow(x, z) {
+                // Create arrow cone
+                const arrow = BABYLON.MeshBuilder.CreateCylinder("targetArrow", {
+                    height: 3,
+                    diameterTop: 0,
+                    diameterBottom: 1.5
+                }, scene);
+                
+                // Create arrow material
+                const arrowMaterial = new BABYLON.StandardMaterial("arrowMaterial", scene);
+                arrowMaterial.diffuseColor = new BABYLON.Color3(1, 0.4, 0); // Orange-red
+                arrowMaterial.emissiveColor = new BABYLON.Color3(0.5, 0.2, 0); // Glow effect
+                arrow.material = arrowMaterial;
+                
+                // Position above target
+                arrow.position = new BABYLON.Vector3(x, 5, z);
+                
+                // Rotate to point downward
+                arrow.rotation.x = Math.PI;
+                
+                // Create animation for bobbing up and down
+                const animation = new BABYLON.Animation(
+                    "arrowAnimation",
+                    "position.y",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+                );
+                
+                // Keyframes for bobbing motion
+                const keyFrames = [
+                    { frame: 0, value: 5 },
+                    { frame: 15, value: 6 },
+                    { frame: 30, value: 5 }
+                ];
+                
+                animation.setKeys(keyFrames);
+                arrow.animations = [animation];
+                
+                // Start looping animation
+                scene.beginAnimation(arrow, 0, 30, true);
+            }
+            
+            // Create or update target distance label
+            function createOrUpdateTargetLabel(x, z, distance) {
+                // Check if label already exists
+                if (scene.getMeshByName("targetLabel")) {
+                    // Update existing label
+                    const labelPlane = scene.getMeshByName("targetLabel");
+                    labelPlane.position = new BABYLON.Vector3(x, 5, z); // Higher position
+                    
+                    // Update the text to include distance
+                    const texture = labelPlane.material.diffuseTexture;
+                    const context = texture.getContext();
+                    context.clearRect(0, 0, 512, 256);
+                    context.fillStyle = "white";
+                    context.strokeStyle = "black";
+                    context.lineWidth = 10;
+                    context.font = "bold 75px Arial"; // 25% smaller (from 100px)
+                    context.textAlign = "center";
+                    context.strokeText(`${Math.round(distance)} YDS`, 256, 128);
+                    context.fillText(`${Math.round(distance)} YDS`, 256, 128);
+                    texture.update();
+                } else {
+                    // Create plane for label - 25% smaller
+                    const labelPlane = BABYLON.MeshBuilder.CreatePlane("targetLabel", {
+                        width: 12, // 25% smaller (from 16)
+                        height: 6  // 25% smaller (from 8)
+                    }, scene);
+                    
+                    // Position high above target
+                    labelPlane.position = new BABYLON.Vector3(x, 5, z);
+                    
+                    // Create dynamic texture with larger size
+                    const textTexture = new BABYLON.DynamicTexture("targetLabelTexture", {
+                        width: 512,
+                        height: 256
+                    }, scene);
+                    
+                    // Draw text with 25% smaller font
+                    const textContext = textTexture.getContext();
+                    textContext.fillStyle = "white";
+                    textContext.strokeStyle = "black";
+                    textContext.lineWidth = 10;
+                    textContext.font = "bold 75px Arial"; // 25% smaller
+                    textContext.textAlign = "center";
+                    textContext.clearRect(0, 0, 512, 256);
+                    textContext.strokeText(`${Math.round(distance)} YDS`, 256, 128);
+                    textContext.fillText(`${Math.round(distance)} YDS`, 256, 128);
+                    textTexture.update();
+                    
+                    // Apply texture
+                    const labelMaterial = new BABYLON.StandardMaterial("labelMaterial", scene);
+                    labelMaterial.diffuseTexture = textTexture;
+                    labelMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                    labelMaterial.backFaceCulling = false;
+                    labelPlane.material = labelMaterial;
+                    
+                    // Make it always face the camera
+                    labelPlane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+                    
+                    // Add dynamic scaling based on camera distance, scaled to 75% of original formula
+                    scene.registerBeforeRender(function() {
+                        const distance = BABYLON.Vector3.Distance(camera.position, labelPlane.position);
+                        // Scale formula to keep consistent visual size regardless of distance
+                        // Reducing the final scale by 25%
+                        const scale = (distance / 60) * 0.75; // 25% reduction from original
+                        labelPlane.scaling.x = scale;
+                        labelPlane.scaling.y = scale;
+                    });
+                }
+            }
+            
+            // Update wind conditions
+            function updateWind() {
+                const strength = Math.floor(Math.random() * 20);
+                const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+                const direction = directions[Math.floor(Math.random() * directions.length)];
+                windDisplay.textContent = strength + " mph " + direction;
+                
+                setTimeout(updateWind, 30000); // Update every 30 seconds
+            }
+            
+            // Update aim display text
+            function updateAimDisplay() {
+                // Convert angle to degrees for display
+                const degrees = Math.round(-currentAimAngle * (180 / Math.PI));
+                
+                if (degrees === 0) {
+                    aimDisplay.textContent = "Center";
+                } else if (degrees > 0) {
+                    aimDisplay.textContent = `Left ${Math.abs(degrees)}°`;
+                } else {
+                    aimDisplay.textContent = `Right ${Math.abs(degrees)}°`;
+                }
+            }
+            
+            // Save camera settings
+            function saveCamera() {
+                savedCamera.alpha = camera.alpha;
+                savedCamera.beta = camera.beta;
+                savedCamera.radius = camera.radius;
+            }
+            
+            // Restore camera settings
+            function restoreCamera() {
+                camera.alpha = savedCamera.alpha;
+                camera.beta = savedCamera.beta;
+                camera.radius = savedCamera.radius;
+            }
+            
+            // Animate the ball flight
+            function animateBallFlight(launchAngle, distance, dispersionAngle = 0, shotAccuracy = 100) {
+                // Clean up any existing distance labels
+                clearDistanceLabels();
+                
+                const startPos = ball.position.clone();
+                
+                // Calculate trajectory points
+                const flightPoints = [];
+                const numFlightPoints = 60;
+                
+                // Apply dispersion to aim angle if accuracy wasn't perfect
+                const finalAimAngle = currentAimAngle + (Math.random() * 2 - 1) * dispersionAngle;
+                
+                // Calculate landing point with aim angle (using negative angle to fix mirroring)
+                const aimX = Math.sin(-finalAimAngle) * distance;
+                const aimZ = Math.cos(finalAimAngle) * distance;
+                const landingPoint = new BABYLON.Vector3(aimX, 0.43, aimZ);
+                
+                // For putter, use a simple low arc
+                if (launchAngle < 3) {
+                    for (let i = 0; i <= numFlightPoints; i++) {
+                        const ratio = i / numFlightPoints;
+                        const x = startPos.x + (aimX - startPos.x) * ratio;
+                        const z = startPos.z + (aimZ - startPos.z) * ratio;
+                        const y = 0.43 + Math.sin(ratio * Math.PI) * 0.2; // Very low arc
+                        flightPoints.push(new BABYLON.Vector3(x, y, z));
+                    }
+                } else {
+                    // For other clubs, use a higher arc
+                    for (let i = 0; i <= numFlightPoints; i++) {
+                        const ratio = i / numFlightPoints;
+                        const x = startPos.x + (aimX - startPos.x) * ratio;
+                        const z = startPos.z + (aimZ - startPos.z) * ratio;
+                        const heightFactor = launchAngle / 15; // Higher angle = higher arc
+                        const y = 0.43 + Math.sin(ratio * Math.PI) * distance * 0.1 * heightFactor;
+                        flightPoints.push(new BABYLON.Vector3(x, y, z));
+                    }
+                }
+                
+                // Add rolling animation after landing
+                const rollDirection = new BABYLON.Vector3(aimX, 0, aimZ).normalize();
+                const rollDistance = (launchAngle < 3) ? distance * 0.05 : distance * 0.1; // Roll 5-10% further
+                const numRollPoints = 30;
+                const rollPoints = [];
+                
+                for (let i = 0; i <= numRollPoints; i++) {
+                    const ratio = i / numRollPoints;
+                    const x = aimX + (rollDirection.x * rollDistance * ratio);
+                    const z = aimZ + (rollDirection.z * rollDistance * ratio);
+                    const y = 0.43; // Ball radius above ground
+                    rollPoints.push(new BABYLON.Vector3(x, y, z));
+                }
+                
+                // Combine flight and roll points
+                const allPoints = [...flightPoints, ...rollPoints];
+                const totalPoints = allPoints.length;
+                
+                // Create animation
+                const animation = new BABYLON.Animation(
+                    "ballAnimation", 
+                    "position", 
+                    30, 
+                    BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                // Create keyframes
+                const keyFrames = [];
+                for (let i = 0; i < totalPoints; i++) {
+                    keyFrames.push({
+                        frame: i,
+                        value: allPoints[i]
+                    });
+                }
+                
+                animation.setKeys(keyFrames);
+                ball.animations = [];
+                ball.animations.push(animation);
+                
+                // Create camera animation to follow ball
+                setupCameraToFollow(allPoints, numFlightPoints);
+                
+                // Update shot info
+                const finalDistance = Math.sqrt(Math.pow(allPoints[totalPoints-1].x, 2) + Math.pow(allPoints[totalPoints-1].z, 2));
+                const distanceDisplayed = Math.round(finalDistance * 10) / 10;
+                shotInfo.textContent = `Shot distance: ${distanceDisplayed} yards`;
+                
+                // Record shot in history
+                recordShot(clubSelector.value, currentPower, distanceDisplayed, shotAccuracy);
+                
+                // Hide aiming target during flight
+                if (scene.getMeshByName("aimingTarget")) {
+                    scene.getMeshByName("aimingTarget").visibility = 0;
+                }
+                if (scene.getMeshByName("targetArrow")) {
+                    scene.getMeshByName("targetArrow").visibility = 0;
+                }
+                if (scene.getMeshByName("targetLabel")) {
+                    scene.getMeshByName("targetLabel").visibility = 0;
+                }
+                
+                // Sound functionality removed
+                
+                // Run animation
+                scene.beginAnimation(ball, 0, totalPoints, false, 1, function() {
+                    // Show landing marker
+                    const finalPos = allPoints[totalPoints-1];
+                    landingMarker.position.x = finalPos.x;
+                    landingMarker.position.z = finalPos.z;
+                    landingMarker.visibility = 1;
+                    
+                    // Create 3D distance label
+                    createDistanceLabel(finalPos, finalDistance);
+                    
+                    // Sound functionality removed
+                    
+                    // Reset after delay
+                    setTimeout(function() {
+                        // Reset camera position
+                        resetCamera();
+                        
+                        // Reset ball
+                        ball.position = startPos.clone();
+                        landingMarker.visibility = 0;
+                        ballFlying = false;
+                        hitButton.disabled = false;
+                        
+                        // Show aiming aids again
+                        if (scene.getMeshByName("aimingTarget")) {
+                            scene.getMeshByName("aimingTarget").visibility = 1;
+                        }
+                        if (scene.getMeshByName("targetArrow")) {
+                            scene.getMeshByName("targetArrow").visibility = 1;
+                        }
+                        if (scene.getMeshByName("targetLabel")) {
+                            scene.getMeshByName("targetLabel").visibility = 1;
+                        }
+                        
+                        // Clear distance labels (in case any are left)
+                        clearDistanceLabels();
+                    }, 4000);
+                });
+            }
+            
+            // Set up camera to follow ball
+            function setupCameraToFollow(points, landingIndex) {
+                // Create camera animation
+                const cameraAnimation = new BABYLON.Animation(
+                    "cameraAnimation",
+                    "target",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                // Create keyframes for camera to follow ball
+                const cameraKeyFrames = [];
+                
+                // Add keyframes to follow ball during flight
+                for (let i = 0; i < points.length; i++) {
+                    if (i % 3 === 0) { // Add fewer keyframes for smoother camera movement
+                        cameraKeyFrames.push({
+                            frame: i,
+                            value: points[i]
+                        });
+                    }
+                }
+                
+                cameraAnimation.setKeys(cameraKeyFrames);
+                camera.animations = [];
+                camera.animations.push(cameraAnimation);
+                
+                // Add animation for camera radius (zooming)
+                const radiusAnimation = new BABYLON.Animation(
+                    "cameraRadiusAnimation",
+                    "radius",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                // Start with current radius, then zoom in for landing
+                const radiusKeyFrames = [
+                    { frame: 0, value: camera.radius },
+                    { frame: landingIndex * 0.8, value: Math.min(camera.radius, 50) }, // During flight
+                    { frame: landingIndex, value: 30 }  // Zoom in for landing
+                ];
+                
+                radiusAnimation.setKeys(radiusKeyFrames);
+                camera.animations.push(radiusAnimation);
+                
+                // Add animation for camera alpha (horizontal rotation)
+                const alphaAnimation = new BABYLON.Animation(
+                    "cameraAlphaAnimation",
+                    "alpha",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                // Move camera to better landing view angle
+                const alphaKeyFrames = [
+                    { frame: 0, value: camera.alpha },
+                    { frame: landingIndex, value: -Math.PI } // Rotate to front view during landing
+                ];
+                
+                alphaAnimation.setKeys(alphaKeyFrames);
+                camera.animations.push(alphaAnimation);
+                
+                // Run camera animations
+                scene.beginAnimation(camera, 0, points.length, false);
+            }
+            
+            // Reset camera to starting position
+            function resetCamera() {
+                const resetAnimation = new BABYLON.Animation(
+                    "cameraResetAnimation",
+                    "target",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                const resetKeyFrames = [
+                    { frame: 0, value: camera.target },
+                    { frame: 30, value: new BABYLON.Vector3(0, 0, 0) }
+                ];
+                
+                resetAnimation.setKeys(resetKeyFrames);
+                camera.animations = [];
+                camera.animations.push(resetAnimation);
+                
+                // Reset radius and alpha
+                const radiusAnimation = new BABYLON.Animation(
+                    "radiusResetAnimation",
+                    "radius",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                const radiusKeyFrames = [
+                    { frame: 0, value: camera.radius },
+                    { frame: 30, value: 50 }
+                ];
+                
+                radiusAnimation.setKeys(radiusKeyFrames);
+                camera.animations.push(radiusAnimation);
+                
+                // Reset alpha (rotation)
+                const alphaAnimation = new BABYLON.Animation(
+                    "alphaResetAnimation",
+                    "alpha",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+                );
+                
+                const alphaKeyFrames = [
+                    { frame: 0, value: camera.alpha },
+                    { frame: 30, value: -Math.PI / 2 }
+                ];
+                
+                alphaAnimation.setKeys(alphaKeyFrames);
+                camera.animations.push(alphaAnimation);
+                
+                // Run reset animations
+                scene.beginAnimation(camera, 0, 30, false);
+            }
+            
+            // Create a 3D text label
+            function createDistanceLabel(position, distance) {
+                // Create plane
+                const labelPlane = BABYLON.MeshBuilder.CreatePlane("distanceLabel", {
+                    width: 15,
+                    height: 6
+                }, scene);
+                
+                // Position above landing spot
+                labelPlane.position = new BABYLON.Vector3(position.x, 8, position.z);
+                
+                // Create dynamic texture
+                const textTexture = new BABYLON.DynamicTexture("distanceLabelTexture", {
+                    width: 512,
+                    height: 256
+                }, scene);
+                
+                // Draw text
+                const textContext = textTexture.getContext();
+                textContext.fillStyle = "white";
+                textContext.strokeStyle = "black";
+                textContext.lineWidth = 10;
+                textContext.font = "bold 100px Arial";
+                textContext.textAlign = "center";
+                textContext.clearRect(0, 0, 512, 256);
+                textContext.strokeText(`${distance.toFixed(1)} yds`, 256, 128);
+                textContext.fillText(`${distance.toFixed(1)} yds`, 256, 128);
+                textTexture.update();
+                
+                // Apply texture
+                const labelMaterial = new BABYLON.StandardMaterial("labelMaterial", scene);
+                labelMaterial.diffuseTexture = textTexture;
+                labelMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
+                labelMaterial.backFaceCulling = false;
+                labelPlane.material = labelMaterial;
+                
+                // Make it always face the camera
+                labelPlane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+                
+                // Add dynamic scaling based on camera distance
+                const scaleObserver = function() {
+                    const cameraDistance = BABYLON.Vector3.Distance(camera.position, labelPlane.position);
+                    const scale = cameraDistance / 60; // Adjust divisor as needed
+                    labelPlane.scaling.x = scale;
+                    labelPlane.scaling.y = scale;
+                };
+                
+                scene.registerBeforeRender(scaleObserver);
+                
+                // Track this label
+                activeLabels.push({
+                    mesh: labelPlane,
+                    observer: scaleObserver
+                });
+            }
+            
+            // Clear all distance labels
+            function clearDistanceLabels() {
+                // Dispose each label and unregister its observer
+                for (let label of activeLabels) {
+                    if (label.observer) {
+                        scene.unregisterBeforeRender(label.observer);
+                    }
+                    if (label.mesh) {
+                        label.mesh.dispose();
+                    }
+                }
+                
+                // Clear the array
+                activeLabels = [];
+            }
+            
+            // Record shot in history
+            function recordShot(clubName, power, distance, accuracy) {
+                // Get club display name
+                let clubDisplayName = "";
+                switch (clubName) {
+                    case "driver": clubDisplayName = "Driver"; break;
+                    case "wood3": clubDisplayName = "3 Wood"; break;
+                    case "iron5": clubDisplayName = "5 Iron"; break;
+                    case "iron9": clubDisplayName = "9 Iron"; break;
+                    case "wedge": clubDisplayName = "P.Wedge"; break;
+                    case "putter": clubDisplayName = "Putter"; break;
+                }
+                
+                // Add to history
+                shotHistory.unshift({
+                    club: clubDisplayName,
+                    power: power,
+                    distance: distance,
+                    accuracy: accuracy
+                });
+                
+                // Keep only last 5 shots
+                if (shotHistory.length > 5) {
+                    shotHistory.pop();
+                }
+                
+                // Update history table
+                updateShotHistoryTable();
+            }
+            
+            // Update shot history table
+            function updateShotHistoryTable() {
+                let html = "";
+                
+                if (shotHistory.length === 0) {
+                    html = '<tr><td colspan="5" style="padding: 10px; text-align: center;">No shots recorded</td></tr>';
+                } else {
+                    for (let i = 0; i < shotHistory.length; i++) {
+                        const shot = shotHistory[i];
+                        html += `<tr>
+                            <td style="padding: 5px; border-bottom: 1px solid #ddd;">${i+1}</td>
+                            <td style="padding: 5px; border-bottom: 1px solid #ddd;">${shot.club}</td>
+                            <td style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">${shot.power}%</td>
+                            <td style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">${shot.distance} yds</td>
+                            <td style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">${shot.accuracy}%</td>
+                        </tr>`;
+                    }
+                }
+                
+                shotHistoryBody.innerHTML = html;
+            }
+            
+            // Typing-related functions
+            
+            // Sample sentences by difficulty
+            const sentences = {
+                easy: [
+                    "Hit the ball.",
+                    "Nice swing.",
+                    "Great shot.",
+                    "Perfect day for golf.",
+                    "Keep it straight."
+                ],
+                medium: [
+                    "Focus on your stance and grip.",
+                    "Keep your head down during the swing.",
+                    "The wind might affect your shot today.",
+                    "Try to land on the fairway this time.",
+                    "A smooth swing leads to better shots."
+                ],
+                hard: [
+                    "Professional golfers practice their swing mechanics every single day.",
+                    "A proper follow-through is essential for distance and accuracy.",
+                    "Golf requires patience, practice, and a positive mental attitude.",
+                    "Choose your club based on distance, wind, and course conditions.",
+                    "Reading the green properly is the key to successful putting."
+                ]
+            };
+            
+            // Start a typing challenge
+            function startTypingChallenge() {
+                // Get current difficulty setting
+                const difficultyLevel = difficultySelector.value; // easy, medium, hard
+                
+                // Get current club
+                const clubValue = clubSelector.value;
+                const club = clubs[clubValue];
+                
+                // Adjust difficulty based on club (drivers are harder, putters are easier)
+                let adjustedDifficulty = difficultyLevel;
+                if (clubValue === "driver" || clubValue === "wood3") {
+                    // Make it one level harder if possible
+                    if (difficultyLevel === "easy") adjustedDifficulty = "medium";
+                    else if (difficultyLevel === "medium") adjustedDifficulty = "hard";
+                } else if (clubValue === "wedge" || clubValue === "putter") {
+                    // Make it one level easier if possible
+                    if (difficultyLevel === "hard") adjustedDifficulty = "medium";
+                    else if (difficultyLevel === "medium") adjustedDifficulty = "easy";
+                }
+                
+                // Select a random sentence from appropriate difficulty
+                const sentenceOptions = sentences[adjustedDifficulty];
+                const selectedSentence = sentenceOptions[Math.floor(Math.random() * sentenceOptions.length)];
+                
+                // Calculate max time based on sentence length and difficulty
+                // Harder difficulties get less time per word
+                const words = selectedSentence.split(" ").length;
+                let timePerWord;
+                switch (difficultyLevel) {
+                    case "easy": timePerWord = 1.8; break;  // 20% more time
+                    case "medium": timePerWord = 1.44; break; // 20% more time (from 1.2)
+                    case "hard": timePerWord = 1.2; break; // 20% more time (from 1.0)
+                    default: timePerWord = 1.44;
+                }
+                // Calculate time, but cap at 12 seconds maximum (20% increase from 10) and ensure at least 3.6 seconds minimum (20% increase from 3)
+                const maxTime = Math.min(12, Math.max(3.6, Math.round(words * timePerWord)));
+                
+                // Initialize typing state
+                typingState.active = true;
+                typingState.currentSentence = selectedSentence;
+                typingState.typedText = "";
+                
+                // Show the preview first
+                typingPrompt.textContent = selectedSentence;
+                typingInput.textContent = "";
+                typingProgressBar.style.width = "0%";
+                typingTimeValue.textContent = maxTime.toFixed(1);
+                typingAccuracy.textContent = "Accuracy: 100%";
+                typingTimeBar.style.transform = "scaleX(0)";
+                
+                // Show typing overlay with preview mode
+                typingOverlay.style.display = "block";
+                typingInput.style.display = "none"; // Hide input area during preview
+                countdownTimer.style.display = "block"; // Show countdown
+                
+                // Hide aiming target during typing
+                if (scene.getMeshByName("aimingTarget")) {
+                    scene.getMeshByName("aimingTarget").visibility = 0.3; // Dim but not invisible
+                }
+                if (scene.getMeshByName("targetArrow")) {
+                    scene.getMeshByName("targetArrow").visibility = 0;
+                }
+                if (scene.getMeshByName("targetLabel")) {
+                    scene.getMeshByName("targetLabel").visibility = 0.3; // Dim but not invisible
+                }
+                
+                // Disable hit button during typing
+                hitButton.disabled = true;
+                
+                // Start countdown
+                let countdown = 3;
+                countdownTimer.textContent = countdown;
+                
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        countdownTimer.textContent = countdown;
+                    } else {
+                        clearInterval(countdownInterval);
+                        // Start the actual typing challenge
+                        startTypingAfterPreview(maxTime);
+                    }
+                }, 1000);
+            }
+            
+            // Start typing after preview countdown
+            function startTypingAfterPreview(maxTime) {
+                // Hide countdown and preview message
+                countdownTimer.style.display = "none";
+                document.getElementById("previewMessage").style.display = "none";
+                
+                // Show typing input
+                typingInput.style.display = "block";
+                
+                // Set start time now that preview is over
+                typingState.startTime = Date.now();
+                typingState.maxTime = maxTime;
+                
+                // Start timer
+                typingState.interval = setInterval(updateTypingTimer, 100);
+            }
+            
+            // Handle keyboard input during typing
+            function handleTypingInput(evt) {
+                // Special keys
+                if (evt.key === "Enter") {
+                    completeTypingChallenge();
+                    return;
+                }
+                
+                // Ignore modifier keys and non-typing keys
+                if (evt.key === "Shift" || evt.key === "Control" || evt.key === "Alt" || 
+                    evt.key === "Tab" || evt.key === "Escape" || evt.key === "CapsLock" ||
+                    evt.key.startsWith("Arrow") || evt.key.startsWith("Page") ||
+                    evt.key === "Home" || evt.key === "End" || evt.key === "Insert" || 
+                    evt.key === "Delete" || evt.key.startsWith("F")) {
+                    return;
+                }
+                
+                // Handle backspace - no backspace allowed in our game design
+                if (evt.key === "Backspace") {
+                    return; // Do nothing - backspace not allowed
+                }
+                
+                // Add character if it's a single printable character
+                if (evt.key.length === 1) {
+                    typingState.typedText += evt.key;
+                    typingInput.textContent = typingState.typedText;
+                    
+                    // Update progress bar
+                    const targetLength = typingState.currentSentence.length;
+                    const progress = Math.min(100, (typingState.typedText.length / targetLength) * 100);
+                    typingProgressBar.style.width = progress + "%";
+                    
+                    // Calculate accuracy
+                    const accuracy = calculateTypingAccuracy(typingState.currentSentence, typingState.typedText);
+                    typingAccuracy.textContent = `Accuracy: ${Math.round(accuracy * 100)}%`;
+                    
+                    // Sound functionality removed
+                    
+                    // Color code the text
+                    colorCodeTypingInput();
+                    
+                    // If completed the sentence, finish challenge
+                    if (typingState.typedText.length >= targetLength) {
+                        completeTypingChallenge();
+                    }
+                }
+            }
+            
+            // Update typing timer
+            function updateTypingTimer() {
+                if (!typingState.active) return;
+                
+                const elapsedTime = (Date.now() - typingState.startTime) / 1000;
+                const remainingTime = Math.max(0, typingState.maxTime - elapsedTime);
+                
+                // Update timer display
+                typingTimeValue.textContent = remainingTime.toFixed(1);
+                
+                // Update time bar
+                const timeRatio = elapsedTime / typingState.maxTime;
+                typingTimeBar.style.transform = `scaleX(${Math.min(timeRatio, 1)})`;
+                
+                // If time is up, complete the challenge
+                if (remainingTime <= 0) {
+                    completeTypingChallenge();
+                }
+                
+                // Sound functionality removed
+            }
+            
+            // Color code the typing input
+            function colorCodeTypingInput() {
+                const typed = typingState.typedText;
+                const target = typingState.currentSentence;
+                
+                let html = '';
+                for (let i = 0; i < typed.length; i++) {
+                    if (i < target.length) {
+                        if (typed[i] === target[i]) {
+                            // Correct character
+                            html += `<span style="color: #4CAF50;">${typed[i]}</span>`;
+                        } else {
+                            // Incorrect character
+                            html += `<span style="color: #FF5252;">${typed[i]}</span>`;
+                        }
+                    } else {
+                        // Extra characters beyond target length
+                        html += `<span style="color: #FF5252;">${typed[i]}</span>`;
+                    }
+                }
+                
+                typingInput.innerHTML = html;
+            }
+            
+            // Complete the typing challenge
+            function completeTypingChallenge() {
+                if (!typingState.active) return;
+                
+                // Stop timer
+                clearInterval(typingState.interval);
+                typingState.active = false;
+                
+                // Hide typing overlay
+                typingOverlay.style.display = "none";
+                
+                // Calculate final metrics
+                const elapsedTime = (Date.now() - typingState.startTime) / 1000;
+                const timeRatio = Math.min(1, elapsedTime / typingState.maxTime);
+                const accuracy = calculateTypingAccuracy(typingState.currentSentence, typingState.typedText);
+                
+                // Calculate power bonus for early completion
+                const earlyCompletionBonus = timeRatio < 0.9 ? (1 - timeRatio) * 0.25 : 0; // Up to 25% power bonus
+                
+                // Calculate adjustments based on typing performance
+                const powerAdjustment = Math.min(1, Math.max(0.7, accuracy)) * (1 + earlyCompletionBonus);
+                const accuracyAdjustment = Math.min(1, Math.max(0.6, Math.pow(accuracy, 1.5))); // Less quadratic effect for more forgiveness
+                
+                console.log(`Power adjustment: ${powerAdjustment.toFixed(2)}, Accuracy adjustment: ${accuracyAdjustment.toFixed(2)}`);
+                
+                // Enable hit button
+                hitButton.disabled = false;
+                
+                // Sound functionality removed
+                
+                // Execute the shot with typing adjustments
+                executeShot(powerAdjustment, accuracyAdjustment);
+            }
+            
+            // Calculate typing accuracy
+            function calculateTypingAccuracy(target, typed) {
+                const targetLength = target.length;
+                const typedLength = typed.length;
+                const maxLength = Math.max(targetLength, typedLength);
+                
+                let correctChars = 0;
+                for (let i = 0; i < typedLength && i < targetLength; i++) {
+                    if (typed[i] === target[i]) {
+                        correctChars++;
+                    }
+                }
+                
+                // Count extra characters as errors
+                const extraChars = Math.max(0, typedLength - targetLength);
+                
+                return (correctChars / maxLength);
+            }
+            
+            // Execute shot with typing adjustments
+            function executeShot(powerAdjustment, accuracyAdjustment) {
+                ballFlying = true;
+                
+                // Get club data
+                const clubValue = clubSelector.value;
+                const club = clubs[clubValue];
+                
+                // Get power adjusted by typing performance
+                const power = (currentPower / 100) * powerAdjustment;
+                
+                // Calculate distance with some randomness, adjusted by accuracy
+                const baseDistance = club.minDistance + (power * (club.maxDistance - club.minDistance));
+                const accuracyFactor = 0.9 + (accuracyAdjustment * 0.2); // Between 0.9-1.1 based on accuracy
+                const actualDistance = baseDistance * accuracyFactor * (0.95 + Math.random() * 0.1);
+                
+                // Calculate shot dispersion based on accuracy
+                const dispersionAngle = (1 - accuracyAdjustment) * 0.3; // Up to 0.3 radians (about 17 degrees) dispersion
+                
+                // Save shot accuracy for history
+                const shotAccuracy = Math.round(accuracyAdjustment * 100);
+                
+                // Animation with typing-based adjustments
+                animateBallFlight(club.launchAngle, actualDistance, dispersionAngle, shotAccuracy);
+            }
+        });
+    </script>
+</body>
+</html>
