@@ -1,6 +1,9 @@
 # TypingForPar
 A Typing golf game prototype 
 
+Play the proto here: https://robesp5.github.io/TypingForPar/
+
+
 **How to Play**
 Game Controls
 
